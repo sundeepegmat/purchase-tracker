@@ -18,6 +18,19 @@ services:
       timeout: 5s
       start_period: 10s
       retries: 3
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.purchase-tracker-http.rule=Host(`srv1079050.hstgr.cloud`) && PathPrefix(`/apps/purchase-tracker`)"
+      - "traefik.http.routers.purchase-tracker-http.entryPoints=http"
+      - "traefik.http.routers.purchase-tracker-http.middlewares=purchase-tracker-strip,gzip"
+      - "traefik.http.routers.purchase-tracker-https.rule=Host(`srv1079050.hstgr.cloud`) && PathPrefix(`/apps/purchase-tracker`)"
+      - "traefik.http.routers.purchase-tracker-https.entryPoints=https"
+      - "traefik.http.routers.purchase-tracker-https.tls=true"
+      - "traefik.http.routers.purchase-tracker-https.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.purchase-tracker-https.middlewares=purchase-tracker-strip,gzip"
+      - "traefik.http.middlewares.purchase-tracker-strip.stripprefix.prefixes=/apps/purchase-tracker"
+      - "traefik.http.middlewares.gzip.compress=true"
+      - "traefik.http.services.purchase-tracker.loadbalancer.server.port=5000"
 
 volumes:
   purchase-tracker-data:
