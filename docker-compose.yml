@@ -1,0 +1,23 @@
+services:
+  purchase-tracker:
+    build: .
+    ports:
+      - "5000"
+    extra_hosts:
+      - "srv1079050.hstgr.cloud:host-gateway"
+    environment:
+      - EGMAT_API_URL=${EGMAT_API_URL}
+      - EGMAT_API_KEY=${EGMAT_API_KEY}
+      - DB_PATH=${DB_PATH:-/app/data/purchase_tracker.db}
+      - REFRESH_INTERVAL_MINUTES=${REFRESH_INTERVAL_MINUTES:-30}
+    volumes:
+      - purchase-tracker-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  purchase-tracker-data:
