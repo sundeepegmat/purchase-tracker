@@ -91,6 +91,13 @@ def init_db():
             errors INTEGER
         )
     """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS webhook_emails (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL,
+            received_at TEXT NOT NULL
+        )
+    """)
     # Migration: add first_name column if it doesn't exist
     try:
         c.execute("ALTER TABLE tracked_emails ADD COLUMN first_name TEXT DEFAULT ''")
@@ -441,6 +448,47 @@ def remove_email():
         conn.commit()
         conn.close()
     return redirect(url_for("add_email_page"))
+
+
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    """Receive webhook from Customer.io with an email address."""
+    try:
+        data = request.get_json(force=True)
+        if data is None:
+            return jsonify({"error": "invalid JSON"}), 400
+    except Exception:
+        return jsonify({"error": "could not parse body"}), 400
+
+    email = data.get("email", "").strip().lower()
+    if not email or "@" not in email:
+        return jsonify({"error": "missing or invalid 'email' field"}), 400
+
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO webhook_emails (email, received_at) VALUES (?, ?)",
+        (email, datetime.utcnow().isoformat()),
+    )
+    conn.commit()
+    conn.close()
+    log.info("Webhook received: email=%s", email)
+    return jsonify({"status": "received", "email": email}), 200
+
+
+@app.route("/webhooks")
+def webhooks_page():
+    """Display all emails received via webhook."""
+    conn = get_db()
+    webhook_emails = conn.execute(
+        "SELECT id, email, received_at FROM webhook_emails ORDER BY id DESC"
+    ).fetchall()
+    conn.close()
+    return render_template(
+        "index.html",
+        tab="webhooks",
+        webhook_emails=webhook_emails,
+        total_webhook_emails=len(webhook_emails),
+    )
 
 
 @app.route("/refresh", methods=["POST"])

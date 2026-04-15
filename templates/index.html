@@ -121,6 +121,7 @@
     <div class="tabs">
         <a href="{{ url_for('dashboard') }}" class="{{ 'active' if tab == 'dashboard' else '' }}">Dashboard</a>
         <a href="{{ url_for('add_email_page') }}" class="{{ 'active' if tab == 'add' else '' }}">Manage Emails</a>
+        <a href="{{ url_for('webhooks_page') }}" class="{{ 'active' if tab == 'webhooks' else '' }}">Webhooks</a>
     </div>
 
     <div class="container">
@@ -276,6 +277,43 @@
             <div class="no-data">No emails being tracked yet.</div>
             {% endif %}
         </div>
+        {% elif tab == 'webhooks' %}
+        <!-- ===================== WEBHOOKS TAB ===================== -->
+        <div class="stats">
+            <div class="stat-card">
+                <div class="label">Webhook Emails Received</div>
+                <div class="value">{{ total_webhook_emails }}</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Emails from Customer.io Webhooks</h2>
+            {% if webhook_emails %}
+            <div class="table-wrap" style="max-height:600px;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Email</th>
+                            <th>Received At (UTC)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for w in webhook_emails %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td><strong>{{ w['email'] }}</strong></td>
+                            <td>{{ w['received_at'][:19] | replace('T', ' ') }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="no-data">No webhook emails received yet.</div>
+            {% endif %}
+        </div>
+
         {% endif %}
     </div>
 
