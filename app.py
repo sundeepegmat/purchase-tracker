@@ -107,7 +107,7 @@ def guess_first_name(email):
         return ""
     try:
         message = anthropic_client.messages.create(
-            model="claude-sonnet-4-6-20250514",
+            model="claude-sonnet-4-6",
             max_tokens=50,
             messages=[{
                 "role": "user",
