@@ -3,3 +3,4 @@ gunicorn==22.0.0
 werkzeug==3.0.3
 requests==2.32.3
 apscheduler==3.10.4
+anthropic==0.52.0

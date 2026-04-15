@@ -166,6 +166,7 @@
                         <tr>
                             <th>#</th>
                             <th>Email</th>
+                            <th>First Name</th>
                             <th>Purchase Date</th>
                             <th>Product</th>
                             <th>Code</th>
@@ -180,6 +181,7 @@
                         <tr>
                             <td>{{ loop.index }}</td>
                             <td><strong>{{ p['email'] }}</strong></td>
+                            <td>{{ p['first_name'] or '-' }}</td>
                             <td>{{ p['purchase_date'] or '-' }}</td>
                             <td>{{ p['product'] or '-' }}</td>
                             <td>{{ p['product_code'] or '-' }}</td>
@@ -246,6 +248,7 @@
                         <tr>
                             <th>#</th>
                             <th>Email</th>
+                            <th>First Name</th>
                             <th>Added On</th>
                             <th>Action</th>
                         </tr>
@@ -255,6 +258,7 @@
                         <tr>
                             <td>{{ loop.index }}</td>
                             <td>{{ e['email'] }}</td>
+                            <td>{{ e['first_name'] or '-' }}</td>
                             <td>{{ e['added_at'][:19] | replace('T', ' ') }}</td>
                             <td>
                                 <form action="{{ url_for('remove_email') }}" method="POST" style="display:inline;"

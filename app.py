@@ -15,6 +15,7 @@ import atexit
 from datetime import datetime
 
 import requests
+import anthropic
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 from werkzeug.middleware.proxy_fix import ProxyFix
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -26,6 +27,7 @@ API_URL = os.environ.get("EGMAT_API_URL", "https://srv1079050.hstgr.cloud/studen
 API_KEY = os.environ.get("EGMAT_API_KEY", "")
 DB_PATH = os.environ.get("DB_PATH", "/app/data/purchase_tracker.db")
 REFRESH_INTERVAL_MINUTES = int(os.environ.get("REFRESH_INTERVAL_MINUTES", "30"))
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -35,6 +37,9 @@ log = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_prefix=1)
+
+# Anthropic client for AI features (name guessing)
+anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
 
 # ---------------------------------------------------------------------------
 # Database helpers
@@ -86,8 +91,40 @@ def init_db():
             errors INTEGER
         )
     """)
+    # Migration: add first_name column if it doesn't exist
+    try:
+        c.execute("ALTER TABLE tracked_emails ADD COLUMN first_name TEXT DEFAULT ''")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
     conn.commit()
     conn.close()
+
+
+def guess_first_name(email):
+    """Use Claude Sonnet 4.6 to guess the first name from an email address."""
+    if not anthropic_client:
+        log.warning("No ANTHROPIC_API_KEY set, skipping name guess for %s", email)
+        return ""
+    try:
+        message = anthropic_client.messages.create(
+            model="claude-sonnet-4-6-20250514",
+            max_tokens=50,
+            messages=[{
+                "role": "user",
+                "content": (
+                    f"Given this email address, guess the person's first name. "
+                    f"Reply with ONLY the first name, capitalized properly. "
+                    f"If you truly cannot guess, reply with just a dash (-). "
+                    f"Email: {email}"
+                ),
+            }],
+        )
+        name = message.content[0].text.strip()
+        log.info("Guessed first name for %s: %s", email, name)
+        return name
+    except Exception as e:
+        log.error("Failed to guess name for %s: %s", email, e)
+        return ""
 
 
 def seed_emails(email_list):
@@ -297,7 +334,7 @@ def dashboard():
     conn = get_db()
     # Get all purchases joined with tracked emails
     purchases = conn.execute("""
-        SELECT p.email, p.purchase_date, p.product, p.product_code,
+        SELECT p.email, t.first_name, p.purchase_date, p.product, p.product_code,
                p.amount, p.currency, p.discount_code, p.status, p.receipt_url
         FROM purchases p
         JOIN tracked_emails t ON p.email = t.email
@@ -336,7 +373,7 @@ def dashboard():
 @app.route("/add-email", methods=["GET"])
 def add_email_page():
     conn = get_db()
-    all_emails = conn.execute("SELECT email, added_at FROM tracked_emails ORDER BY email").fetchall()
+    all_emails = conn.execute("SELECT email, added_at, first_name FROM tracked_emails ORDER BY email").fetchall()
     conn.close()
     return render_template("index.html", tab="add", all_emails=all_emails)
 
@@ -347,11 +384,12 @@ def add_email():
     if not email or "@" not in email:
         return redirect(url_for("add_email_page"))
 
+    first_name = guess_first_name(email)
     conn = get_db()
     now = datetime.utcnow().isoformat()
     conn.execute(
-        "INSERT OR IGNORE INTO tracked_emails (email, added_at) VALUES (?, ?)",
-        (email, now),
+        "INSERT OR IGNORE INTO tracked_emails (email, added_at, first_name) VALUES (?, ?, ?)",
+        (email, now, first_name),
     )
     conn.commit()
     conn.close()
